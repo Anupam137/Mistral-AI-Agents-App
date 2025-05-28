@@ -2,6 +2,8 @@
 
 A comprehensive Streamlit application that showcases the capabilities of Mistral AI Agents API.
 
+![Mistral AI Agents](./mistral%20ai%20agents.jpg)
+
 ## Features
 
 The application demonstrates the following capabilities of Mistral AI Agents:
