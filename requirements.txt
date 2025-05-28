@@ -1,0 +1,8 @@
+streamlit
+mistralai
+python-dotenv
+pandas
+plotly
+matplotlib
+pillow
+pyperclip
