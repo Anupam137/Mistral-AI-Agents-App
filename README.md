@@ -2,7 +2,7 @@
 
 A comprehensive Streamlit application that showcases the capabilities of Mistral AI Agents API.
 
-![Mistral AI Agents](./mistral%20ai%20agents.jpg)
+![Mistral AI Agents](./mistral%20ai%20agents.png)
 
 ## Features
 
