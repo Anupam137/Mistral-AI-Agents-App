@@ -67,4 +67,5 @@ This will start the local server and open the application in your web browser.
 ## Credits
 
 Created by AI Anytime
+
 Powered by Mistral AI Agents API
