@@ -98,78 +98,81 @@ def display_image_generation_page():
                 "content": user_prompt
             })
             
-            try:
-                # Start a conversation with the agent
-                with st.spinner("Generating image... This may take a moment."):
-                    response = client.beta.conversations.start(
-                        agent_id=image_agent.id,
-                        inputs=user_prompt
-                    )
+            # Loop to generate at least two images
+            num_images_to_generate = 2
+            for i in range(num_images_to_generate):
+                try:
+                    # Start a conversation with the agent
+                    with st.spinner(f"Generating image {i+1}/{num_images_to_generate}... This may take a moment."):
+                        response = client.beta.conversations.start(
+                            agent_id=image_agent.id,
+                            inputs=user_prompt
+                        )
+                    
+                    # Extract and process the agent's response
+                    response_text = ""
+                    image_file_id = None
+                    image_file_name = None
+                    image_file_type = None
+                    
+                    for output in response.outputs:
+                        if hasattr(output, 'type') and output.type == "message.output":
+                            # Handle string content
+                            if isinstance(output.content, str):
+                                response_text += output.content
+                            # Handle list content
+                            elif isinstance(output.content, list):
+                                for content_item in output.content:
+                                    # For dictionary items with get method
+                                    if hasattr(content_item, 'get'):
+                                        if content_item.get("type") == "text":
+                                            response_text += content_item.get("text", "")
+                                        elif content_item.get("type") == "tool_file" and content_item.get("tool") == "image_generation":
+                                            image_file_id = content_item.get("file_id")
+                                            image_file_name = content_item.get("file_name")
+                                            image_file_type = content_item.get("file_type")
+                                    # For objects without get method
+                                    elif hasattr(content_item, 'type'):
+                                        # Handle text content
+                                        if content_item.type == "text" and hasattr(content_item, 'text'):
+                                            response_text += content_item.text
+                                        # Handle tool_file content
+                                        elif content_item.type == "tool_file" and hasattr(content_item, 'tool'):
+                                            if content_item.tool == "image_generation":
+                                                if hasattr(content_item, 'file_id'):
+                                                    image_file_id = content_item.file_id
+                                                if hasattr(content_item, 'file_name'):
+                                                    image_file_name = content_item.file_name
+                                                if hasattr(content_item, 'file_type'):
+                                                    image_file_type = content_item.file_type
+                    
+                    # Download the image if file_id is available
+                    image_data = None
+                    if image_file_id:
+                        with st.spinner(f"Downloading generated image {i+1}/{num_images_to_generate}..."):
+                            try:
+                                file_response = client.files.download(file_id=image_file_id)
+                                image_data = file_response.read()
+                            except Exception as e:
+                                st.error(f"Failed to download image {i+1}/{num_images_to_generate}: {str(e)}")
+                    
+                    # Add agent response to history
+                    st.session_state.image_generation_history.append({
+                        "role": "assistant",
+                        "content": response_text if response_text else f"Here is generated image {i+1}",
+                        "image_data": image_data,
+                        "image_file_name": image_file_name,
+                        "image_file_type": image_file_type
+                    })
                 
-                # Extract and process the agent's response
-                response_text = ""
-                image_file_id = None
-                image_file_name = None
-                image_file_type = None
-                
-                for output in response.outputs:
-                    if hasattr(output, 'type') and output.type == "message.output":
-                        # Handle string content
-                        if isinstance(output.content, str):
-                            response_text += output.content
-                        # Handle list content
-                        elif isinstance(output.content, list):
-                            for content_item in output.content:
-                                # For dictionary items with get method
-                                if hasattr(content_item, 'get'):
-                                    if content_item.get("type") == "text":
-                                        response_text += content_item.get("text", "")
-                                    elif content_item.get("type") == "tool_file" and content_item.get("tool") == "image_generation":
-                                        image_file_id = content_item.get("file_id")
-                                        image_file_name = content_item.get("file_name")
-                                        image_file_type = content_item.get("file_type")
-                                # For objects without get method
-                                elif hasattr(content_item, 'type'):
-                                    # Handle text content
-                                    if content_item.type == "text" and hasattr(content_item, 'text'):
-                                        response_text += content_item.text
-                                    # Handle tool_file content
-                                    elif content_item.type == "tool_file" and hasattr(content_item, 'tool'):
-                                        if content_item.tool == "image_generation":
-                                            if hasattr(content_item, 'file_id'):
-                                                image_file_id = content_item.file_id
-                                            if hasattr(content_item, 'file_name'):
-                                                image_file_name = content_item.file_name
-                                            if hasattr(content_item, 'file_type'):
-                                                image_file_type = content_item.file_type
-                
-                # Download the image if file_id is available
-                image_data = None
-                if image_file_id:
-                    with st.spinner("Downloading generated image..."):
-                        try:
-                            file_response = client.beta.files.download(file_id=image_file_id)
-                            image_data = file_response.read()
-                        except Exception as e:
-                            st.error(f"Failed to download image: {str(e)}")
-                
-                # Add agent response to history
-                st.session_state.image_generation_history.append({
-                    "role": "assistant",
-                    "content": response_text,
-                    "image_data": image_data,
-                    "image_file_name": image_file_name,
-                    "image_file_type": image_file_type
-                })
-            
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-                # Add error message to history
-                st.session_state.image_generation_history.append({
-                    "role": "assistant",
-                    "content": f"Error: {str(e)}",
-                    "image_data": None
-                })
+                except Exception as e:
+                    st.error(f"Error generating image {i+1}: {str(e)}")
+                    # Add error message to history
+                    st.session_state.image_generation_history.append({
+                        "role": "assistant",
+                        "content": f"Error generating image {i+1}: {str(e)}",
+                        "image_data": None
+                    })
     
     # Display chat history
     st.markdown("### Conversation & Generated Images")
@@ -194,7 +197,7 @@ def display_image_generation_page():
                     image = Image.open(io.BytesIO(message["image_data"]))
                     
                     # Display the image
-                    st.image(image, caption="Generated Image", use_column_width=True)
+                    st.image(image, caption="Generated Image", use_container_width=True)
                     
                     # Add download button for the image
                     if message.get("image_file_name") and message.get("image_file_type"):
